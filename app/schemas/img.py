@@ -13,6 +13,7 @@ class fileRatio(BaseModel):
 class imgResponse(imgBase):
     memo: str
     download_url: str
+    download_all_url: str
     ratios: List[fileRatio]
 
 
