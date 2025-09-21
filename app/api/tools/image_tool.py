@@ -11,6 +11,7 @@ import zipfile
 import os
 
 import time, uuid
+import mimetypes
 
 router = APIRouter()
 TMP_DIR = 'tmp'
@@ -18,12 +19,14 @@ TMP_DIR = 'tmp'
 
 '''
 API: /upload
-功能說明: 傳入圖檔(最多N張)，並依照所選比例轉檔(webp?)
+功能說明: 傳入圖檔(最多N張)，並依照所選比例轉檔
+20250921 新增keep參數，保留原始檔案格式 僅壓縮
 '''
 @router.post("/upload")
 async def upload(
     #預設用前面的參數名稱，假如要不同的話要用alias別名
     #query string 的話 quality: int = Query(...), 
+    format_type: str = Form(...),
     quality_value: int = Form(...),
     files: List[UploadFile] = File(..., alias="upload_files")
 ):
@@ -41,13 +44,22 @@ async def upload(
 
         tmp_bytes = BytesIO()
         with Image.open(BytesIO(content_bytes)) as img:
-            img.save(tmp_bytes, "webp", quality=quality_value, optimize=True)
+            if format_type=='jpeg':
+                img = img.convert("RGB") 
+            
+            if format_type=='keep':
+                img.save(tmp_bytes, img.format.lower(), quality=quality_value, optimize=True)
+            else:
+                img.save(tmp_bytes, format_type, quality=quality_value, optimize=True)
 
         tmp_bytes.seek(0)
         new_size = len(tmp_bytes.getvalue())
         ratio = round((new_size / org_size) * 100, 2)
 
-        save_name = file.filename.rsplit(".", 1)[0] + ".webp"
+        if format_type=='keep':
+            save_name = file.filename
+        else:
+            save_name = file.filename.rsplit(".", 1)[0] + "." + format_type
         save_path = os.path.join(folder_path, save_name)
         with open(save_path, "wb") as f:
             f.write(tmp_bytes.read())
@@ -75,7 +87,10 @@ def download(uuid: str, filename: str):
     if not os.path.exists(file_path):
         raise SystemError
     
-    return FileResponse(file_path, media_type="image/webp", filename=filename)
+    # 依附檔名判斷
+    mime_type, _ = mimetypes.guess_type(file_path) 
+    
+    return FileResponse(file_path, media_type=mime_type, filename=filename)
 
 '''
 API: /downloadAll
@@ -142,7 +157,7 @@ def example(user: userRequest):
 #region 工具
 def get_uuid():
     ts= int(time.time())
-    rand = uuid.uuid4().hex[:6]
+    rand = uuid.uuid4().hex[:8]
     return f"{ts}{rand}"
 
 
