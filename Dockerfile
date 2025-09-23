@@ -10,8 +10,6 @@ COPY pyproject.toml poetry.lock /app/
 # 生成 requirements.txt 並安裝依賴
 #RUN poetry export -f requirements.txt --without-hashes | pip install --no-cache-dir -r /dev/stdin
 
-#RUN pip install --no-cache-dir poetry \
-# && poetry export -f requirements.txt --without-hashes | pip install --no-cache-dir -r /dev/stdin
 
 RUN pip install --no-cache-dir poetry \
     && poetry config virtualenvs.create false \
@@ -25,4 +23,4 @@ COPY . /app
 RUN mkdir -p /app/tmp
 
 # 啟動命令
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

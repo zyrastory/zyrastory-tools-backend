@@ -1,0 +1,10 @@
+.git
+.vscode
+
+__pycache__
+*.pyc
+
+
+tmp/
+.env
+
