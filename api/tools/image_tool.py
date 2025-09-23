@@ -2,8 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Form, APIRouter, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
 #from app import schemas
-from app.schemas.user import userRequest, userResponse
-from app.schemas.img import fileRatio, imgResponse
+from schemas.user import userRequest, userResponse
+from schemas.img import fileRatio, imgResponse
 
 from PIL import Image
 from io import BytesIO
