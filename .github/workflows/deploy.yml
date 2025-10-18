@@ -36,9 +36,21 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: SUPABASE_URL,SUPABASE_KEY,LINE_TOKEN,LINE_SECRET
           port: 22
           script: |
             docker pull zyrastory/tools:latest
             docker stop fastapi || true
             docker rm fastapi || true
-            docker run -d --name fastapi -v /home/zyrastory/volume/tmp:/app/tmp -p 8000:8000 zyrastory/tools:latest
+            docker run -d --name fastapi \
+            -v /home/zyrastory/volume/tmp:/app/tmp \
+            -e SUPABASE_URL="$SUPABASE_URL" \
+            -e SUPABASE_SERVICE_KEY="$SUPABASE_KEY" \
+            -e LINE_TOKEN="$LINE_TOKEN" \
+            -e LINE_SECRET="$LINE_SECRET" \
+            -p 8000:8000 zyrastory/tools:latest
+          env:
+            SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+            SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+            LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
+            LINE_SECRET: ${{ secrets.LINE_SECRET }}
