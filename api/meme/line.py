@@ -43,8 +43,8 @@ supabase = create_client(
 )
 
 DEFAULT_MEME_IMAGES = [
-    "https://img.zyrastory.com/not_found_1.jpeg",
-    "https://img.zyrastory.com/not_found_2.jpeg"
+    "https://img.zyrastory.com/default/not_found_1.jpeg",
+    "https://img.zyrastory.com/default/not_found_2.jpeg"
 ]
 
 @router.post("/callback")
