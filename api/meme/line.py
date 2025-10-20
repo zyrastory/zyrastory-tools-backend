@@ -47,6 +47,8 @@ DEFAULT_MEME_IMAGES = [
     "https://img.zyrastory.com/default/not_found_2.jpeg"
 ]
 
+KEYWORDS = {"股票", "政治", "周星馳"}
+
 @router.post("/callback")
 async def callback(
     request: Request,
@@ -65,11 +67,18 @@ async def callback(
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     user_text = event.message.text
-    
-    # 使用 RPC 搜尋隨機梗圖
-    response = supabase.rpc('search_meme_by_text', {
-        'search_text': user_text
-    }).execute()
+
+    if user_text in KEYWORDS:
+        response = supabase.rpc(
+            'search_meme_by_tag',
+            {'search_tag': user_text}
+        ).execute()
+    else:
+        # 使用 RPC 搜尋隨機梗圖
+        response = supabase.rpc(
+            'search_meme_by_text', 
+            {'search_text': user_text}
+        ).execute()
     
     # 取得結果
     if response.data and len(response.data) > 0:
