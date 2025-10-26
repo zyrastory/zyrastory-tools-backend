@@ -3,6 +3,9 @@ import redis
 import os
 
 from dotenv import load_dotenv
+import logging
+
+logger = logging.getLogger(__name__)
 
 redis_client = None
 supabase = None
@@ -27,12 +30,14 @@ def init_connections():
             decode_responses=True
         )
         redis_client.ping()
+        logger.info("Redis init success")
         print("Redis connected")
 
         init_cache()
 
     except Exception as e:
-        print(f"Redis unavailable: {e}")
+        logger.error(f"Redis init failed: {e}")
+        print(f"Redis init failed: {e}")
         redis_client = None
 
 """關閉連線"""

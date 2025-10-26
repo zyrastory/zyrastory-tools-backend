@@ -49,6 +49,7 @@ jobs:
             -e LINE_TOKEN="$LINE_TOKEN" \
             -e LINE_SECRET="$LINE_SECRET" \
             -e ADMIN_TOKEN="$ADMIN_TOKEN" \
+            -e REDIS_HOST="$REDIS_HOST" \
             -p 8000:8000 zyrastory/tools:latest
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -56,3 +57,4 @@ jobs:
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           LINE_SECRET: ${{ secrets.LINE_SECRET }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          REDIS_HOST: "172.17.0.1"
