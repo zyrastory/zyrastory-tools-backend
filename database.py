@@ -42,14 +42,17 @@ def init_connections():
 
 """關閉連線"""
 def close_connections():
+    global redis_client, supabase
     if redis_client:
         redis_client.close()
 
 
 def init_cache():
+    global redis_client, supabase
     if not redis_client:
         return
     
+    logger.info("Redis initialize...")
     print("Redis initialize...")
     
     for tag in KEYWORDS:
@@ -65,8 +68,24 @@ def init_cache():
         
         if response.data:
             urls = [m['image_url'] for m in response.data]
+            logger.info(f"Redis before add: {tag} ")
             redis_client.sadd(cache_key, *urls)
             #redis_client.expire(cache_key, 86400)  # 24小時
+
             print(f"Redis add: {tag} ({len(urls)} memes)")
+            logger.info(f"Redis add: {tag} ({len(urls)} memes)")
         else:
             print(f"no memes for: {tag}")
+
+def get_redis():
+    global redis_client, supabase
+    try:
+        redis_client.ping()
+    except (redis.exceptions.ConnectionError, BrokenPipeError):
+        logger.info("Redis connection lost, reconnecting...")
+        redis_client = redis.Redis(
+            host=os.getenv('REDIS_HOST', 'localhost'),
+            port=int(os.getenv('REDIS_PORT', '6379')),
+            decode_responses=True
+        )
+    return redis_client

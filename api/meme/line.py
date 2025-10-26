@@ -78,7 +78,7 @@ async def callback(
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     supabase = database.supabase
-    redis_client = database.redis_client
+    redis_client = database.get_redis()
 
     user_text = event.message.text
     image_url = None
