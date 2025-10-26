@@ -6,8 +6,15 @@ from schemas.user import userRequest, userResponse
 import random
 import os
 
-from supabase import create_client
+#from supabase import create_client
 from dotenv import load_dotenv
+import database
+#from database import redis_client,supabase
+
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 from linebot.v3 import (
     WebhookHandler
@@ -33,22 +40,26 @@ configuration = Configuration(
 )
 handler = WebhookHandler(os.getenv('LINE_SECRET'))
 
-'''
-API: /upload
-功能說明: 
+
 '''
 supabase = create_client(
     os.getenv("SUPABASE_URL"),
     os.getenv("SUPABASE_SERVICE_KEY")
 )
+'''
 
 DEFAULT_MEME_IMAGES = [
     "https://img.zyrastory.com/default/not_found_1.jpeg",
-    "https://img.zyrastory.com/default/not_found_2.jpeg"
+    "https://img.zyrastory.com/default/not_found_2.jpeg",
+    "https://img.zyrastory.com/default/not_found_3.jpeg"
 ]
 
 KEYWORDS = {"股票", "政治", "周星馳"}
 
+'''
+API: /callback
+功能說明: 供line webhook 呼叫用
+'''
 @router.post("/callback")
 async def callback(
     request: Request,
@@ -66,25 +77,40 @@ async def callback(
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
-    user_text = event.message.text
+    supabase = database.supabase
+    redis_client = database.redis_client
 
+    user_text = event.message.text
+    image_url = None
+    response = None
+
+    #20251026 新增關鍵字 redis 判斷
     if user_text in KEYWORDS:
-        response = supabase.rpc(
-            'search_meme_by_tag',
-            {'search_tag': user_text}
-        ).execute()
+        cache_key = f"tag:{user_text}"
+        if redis_client.exists(cache_key):
+            image_url = redis_client.srandmember(cache_key)
+            logger.info('成功從redis取值')
+        else:
+            response = supabase.rpc(
+                'search_meme_by_tag',
+                {'search_tag': user_text}
+            ).execute()
+            logger.info('tag 依然走 rpc')
     else:
-        # 使用 RPC 搜尋隨機梗圖
+        # 使用 RPC 搜尋梗圖  >> rpc 寫法待改 order by random 或許太耗效能
         response = supabase.rpc(
             'search_meme_by_text', 
             {'search_text': user_text}
         ).execute()
     
+
     # 取得結果
-    if response.data and len(response.data) > 0:
-        meme = response.data[0]
-        image_url = meme['image_url']
-    else:
+    if response is not None:
+        if response.data and len(response.data) > 0:
+            meme = response.data[0]
+            image_url = meme['image_url']
+
+    if image_url is None:  
         # 沒找到，隨機一筆預設圖
         image_url = random.choice(DEFAULT_MEME_IMAGES)
     
@@ -110,6 +136,7 @@ Depends()  >> 把 userRequest 當 callable 呼叫，並自動從 query string �
 post 不需要 會自動解析
 '''
 
+'''
 @router.get("/search")
 def search_memes(q: str):
 
@@ -124,9 +151,8 @@ def search_memes(q: str):
 
     meme = response.data[0] if response.data else None
     
-    
-    
     return {"meme": meme}
+'''
 
 @router.get("/example", response_model=userResponse)
 def example(user: userRequest = Depends()):

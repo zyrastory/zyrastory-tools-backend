@@ -48,9 +48,11 @@ jobs:
             -e SUPABASE_SERVICE_KEY="$SUPABASE_KEY" \
             -e LINE_TOKEN="$LINE_TOKEN" \
             -e LINE_SECRET="$LINE_SECRET" \
+            -e ADMIN_TOKEN="$ADMIN_TOKEN" \
             -p 8000:8000 zyrastory/tools:latest
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           LINE_SECRET: ${{ secrets.LINE_SECRET }}
+          ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
