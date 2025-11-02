@@ -54,7 +54,41 @@ def init_cache():
     
     logger.info("Redis initialize...")
     print("Redis initialize...")
-    
+
+    # now redis
+    redis_result = {}
+    for key in redis_client.scan_iter("tag:*"):
+        redis_result[key] = redis_client.scard(key)
+
+    # DB count
+    count_response = supabase.rpc('get_tag_counts').execute()
+
+    response = None
+
+    if count_response.data:
+        for row in count_response.data:
+            tag = row["tag"]
+            db_count = row["count"]
+            cache_key = f"tag:{tag}"
+
+            if cache_key in redis_result:
+                redis_count = redis_result[cache_key]
+                if redis_count != db_count:
+                    print(f"tag {tag} count - reids:{redis_count}, db:{db_count}")
+                    redis_client.delete(cache_key)
+                    response = supabase.rpc('search_memes_by_tag', {'search_tag': tag}).execute()
+            
+            #不存在redis的
+            else:
+                response = supabase.rpc('search_memes_by_tag', {'search_tag': tag}).execute()
+            
+            if response is not None and response.data:
+                urls = [m['image_url'] for m in response.data]
+                redis_client.sadd(cache_key, *urls)
+                #redis_client.expire(cache_key, 86400)  # 24小時
+                print(f"Redis add: {tag} ({len(urls)} memes)")
+                
+    '''
     for tag in KEYWORDS:
         cache_key = f"tag:{tag}"
         
@@ -76,7 +110,8 @@ def init_cache():
             logger.info(f"Redis add: {tag} ({len(urls)} memes)")
         else:
             print(f"no memes for: {tag}")
-
+    '''
+    
 def get_redis():
     global redis_client, supabase
     try:

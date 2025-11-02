@@ -12,6 +12,10 @@ from dotenv import load_dotenv
 #from database import redis_client,supabase
 import database
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 load_dotenv() 
 
 router = APIRouter()
@@ -49,6 +53,62 @@ async def refresh_tag_cache(tag: str, authorization: str = Header(None)):
         
     except Exception as e:
         return ApiResponse(status="failed",message=str(e))
+
+
+@router.post("/update-all-tag")
+async def refresh_all_tag_cache( authorization: str = Header(None)):
+    verify_admin(authorization)
+
+    supabase = database.supabase
+    redis_client = database.redis_client
+    
+    message = ''
+
+    try:
+        # now redis
+        redis_result = {}
+        for key in redis_client.scan_iter("tag:*"):
+            redis_result[key] = redis_client.scard(key)
+
+        # DB count
+        count_response = supabase.rpc('get_tag_counts').execute()
+
+        response = None
+
+        if count_response.data:
+            for row in count_response.data:
+                tag = row["tag"]
+                db_count = row["count"]
+                cache_key = f"tag:{tag}"
+
+                if cache_key in redis_result:
+                    redis_count = redis_result[cache_key]
+                    if redis_count != db_count:
+                        msg = f"tag {tag} count - reids:{redis_count}, db:{db_count}"
+                        logger.info(msg)
+                        redis_client.delete(cache_key)
+                        response = supabase.rpc('search_memes_by_tag', {'search_tag': tag}).execute()
+
+                        message+=msg
+                
+                #不存在redis的
+                else:
+                    response = supabase.rpc('search_memes_by_tag', {'search_tag': tag}).execute()
+                    message+=f"tag {tag} not in redis now"
+                
+                if response is not None and response.data:
+                    urls = [m['image_url'] for m in response.data]
+                    redis_client.sadd(cache_key, *urls)
+                    #redis_client.expire(cache_key, 86400)  # 24小時
+                    #logger.info(f"Redis add: {tag} ({len(urls)} memes)")
+                    message+="  -  success\n"
+            
+            return ApiResponse(status="success",message=message)
+        else:
+            return ApiResponse(status="faild",message="no Data found")
+    except Exception as e:
+        return ApiResponse(status="failed",message=str(e))
+
 
 
 '''基本驗證'''
