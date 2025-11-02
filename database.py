@@ -9,8 +9,9 @@ logger = logging.getLogger(__name__)
 
 redis_client = None
 supabase = None
+redis_tags = set()  # 新增一個全域的redis tag對應
 
-KEYWORDS = {"股票", "政治", "周星馳"}
+#KEYWORDS = {"股票", "政治", "周星馳"}
 
 """初始化所有連線"""
 def init_connections():
@@ -48,7 +49,7 @@ def close_connections():
 
 
 def init_cache():
-    global redis_client, supabase
+    global redis_client, supabase,redis_tags
     if not redis_client:
         return
     
@@ -66,6 +67,8 @@ def init_cache():
     response = None
 
     if count_response.data:
+        redis_tags = {row["tag"] for row in count_response.data if row.get("tag")}
+
         for row in count_response.data:
             tag = row["tag"]
             db_count = row["count"]
@@ -111,7 +114,7 @@ def init_cache():
         else:
             print(f"no memes for: {tag}")
     '''
-    
+
 def get_redis():
     global redis_client, supabase
     try:

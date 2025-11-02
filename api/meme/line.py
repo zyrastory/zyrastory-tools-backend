@@ -54,7 +54,16 @@ DEFAULT_MEME_IMAGES = [
     "https://img.zyrastory.com/default/not_found_3.jpeg"
 ]
 
-KEYWORDS = {"股票", "政治", "周星馳"}
+# 特殊映射
+TAG_ALIASES = {
+    "5/454": "政治",
+    "mygo": "MyGO",
+    "mygO": "MyGO",
+    "myGO": "MyGO",
+    "MYGO": "MyGO"
+}
+
+#KEYWORDS = {"股票", "政治", "周星馳"}
 
 '''
 API: /callback
@@ -79,13 +88,14 @@ async def callback(
 def handle_message(event):
     supabase = database.supabase
     redis_client = database.get_redis()
+    redis_tags = database.redis_tags
 
     user_text = event.message.text
     image_url = None
     response = None
 
-    #20251026 新增關鍵字 redis 判斷
-    if user_text in KEYWORDS:
+    #20251026 新增關鍵字 redis 判斷 20251102 移除寫死關鍵字判斷
+    if user_text in redis_tags:
         cache_key = f"tag:{user_text}"
         if redis_client.exists(cache_key):
             image_url = redis_client.srandmember(cache_key)
