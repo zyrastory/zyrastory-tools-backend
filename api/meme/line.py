@@ -100,7 +100,7 @@ def handle_message(event):
         cache_key = f"tag:{user_text}"
         if redis_client.exists(cache_key):
             image_url = redis_client.srandmember(cache_key)
-            logger.info('成功從redis取值')
+            logger.info(f'成功從redis取值-{user_text}')
         else:
             response = supabase.rpc(
                 'search_meme_by_tag',

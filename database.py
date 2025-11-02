@@ -66,22 +66,22 @@ def init_cache():
     # DB count
     count_response = supabase.rpc('get_tag_counts').execute()
 
-    response = None
-
     if count_response.data:
         redis_tags = {row["tag"] for row in count_response.data if row.get("tag")}
         
-        print(redis_tags)
+        logger.info(redis_tags)
 
         for row in count_response.data:
             tag = row["tag"]
             db_count = row["count"]
             cache_key = f"tag:{tag}"
 
+            response = None
+
             if cache_key in redis_result:
                 redis_count = redis_result[cache_key]
                 if redis_count != db_count:
-                    print(f"tag {tag} count - reids:{redis_count}, db:{db_count}")
+                    logger.info(f"tag {tag} count - reids:{redis_count}, db:{db_count}")
                     redis_client.delete(cache_key)
                     response = supabase.rpc('search_memes_by_tag', {'search_tag': tag}).execute()
             
@@ -93,7 +93,7 @@ def init_cache():
                 urls = [m['image_url'] for m in response.data]
                 redis_client.sadd(cache_key, *urls)
                 #redis_client.expire(cache_key, 86400)  # 24小時
-                print(f"Redis add: {tag} ({len(urls)} memes)")
+                logger.info(f"Redis add: {tag} ({len(urls)} memes)")
                 
     '''
     for tag in KEYWORDS:

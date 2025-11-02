@@ -75,13 +75,13 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
         # DB count
         count_response = supabase.rpc('get_tag_counts').execute()
 
-        response = None
-
         if count_response.data:
             for row in count_response.data:
                 tag = row["tag"]
                 db_count = row["count"]
                 cache_key = f"tag:{tag}"
+
+                response = None
 
                 if cache_key in redis_result:
                     redis_count = redis_result[cache_key]
