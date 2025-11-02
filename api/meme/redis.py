@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 load_dotenv() 
 
 router = APIRouter()
-KEYWORDS = {"股票", "政治", "周星馳"}
+#KEYWORDS = {"股票", "政治", "周星馳"}
 
 
 @router.post("/update-tag/{tag}")
@@ -28,8 +28,9 @@ async def refresh_tag_cache(tag: str, authorization: str = Header(None)):
 
     supabase = database.supabase
     redis_client = database.redis_client
+    redis_tags = database.redis_tags
     
-    if tag not in KEYWORDS:
+    if tag not in redis_tags:
         raise HTTPException(400, detail=f"Invalid tag: {tag}")
     
     cache_key = f"tag:{tag}"
@@ -68,7 +69,8 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
         # now redis
         redis_result = {}
         for key in redis_client.scan_iter("tag:*"):
-            redis_result[key] = redis_client.scard(key)
+            key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+            redis_result[key_str] = redis_client.scard(key_str)
 
         # DB count
         count_response = supabase.rpc('get_tag_counts').execute()

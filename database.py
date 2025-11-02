@@ -59,7 +59,9 @@ def init_cache():
     # now redis
     redis_result = {}
     for key in redis_client.scan_iter("tag:*"):
-        redis_result[key] = redis_client.scard(key)
+        key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+        redis_result[key_str] = redis_client.scard(key_str)
+
 
     # DB count
     count_response = supabase.rpc('get_tag_counts').execute()
@@ -68,6 +70,8 @@ def init_cache():
 
     if count_response.data:
         redis_tags = {row["tag"] for row in count_response.data if row.get("tag")}
+        
+        print(redis_tags)
 
         for row in count_response.data:
             tag = row["tag"]

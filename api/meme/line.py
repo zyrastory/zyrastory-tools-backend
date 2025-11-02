@@ -94,6 +94,7 @@ def handle_message(event):
     image_url = None
     response = None
 
+    logger.info(redis_tags)
     #20251026 新增關鍵字 redis 判斷 20251102 移除寫死關鍵字判斷
     if user_text in redis_tags:
         cache_key = f"tag:{user_text}"
