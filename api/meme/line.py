@@ -164,7 +164,7 @@ def handle_command(event, user_text):
 
     if user_text == "/random":
         if redis_tags:
-            randomTag = random.sample(redis_tags, 1)[0]
+            randomTag = random.choice(list(redis_tags))
             cache_key = f"tag:{randomTag}"
             if redis_client.exists(cache_key):
                 image_url = redis_client.srandmember(cache_key)
