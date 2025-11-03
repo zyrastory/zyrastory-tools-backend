@@ -63,6 +63,9 @@ TAG_ALIASES = {
     "MYGO": "MyGO"
 }
 
+# 指令
+COMMANDS = {"/random","/help"}
+
 #KEYWORDS = {"股票", "政治", "周星馳"}
 
 '''
@@ -86,15 +89,26 @@ async def callback(
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    user_text = event.message.text
+    
+    #20251103 新增指令判斷
+    if user_text in COMMANDS:
+        handle_command(event, user_text)
+        return
+
     supabase = database.supabase
     redis_client = database.get_redis()
     redis_tags = database.redis_tags
-
-    user_text = event.message.text
+    
     image_url = None
     response = None
 
     logger.info(redis_tags)
+
+
+    if user_text in TAG_ALIASES:
+        user_text = TAG_ALIASES[user_text]
+
     #20251026 新增關鍵字 redis 判斷 20251102 移除寫死關鍵字判斷
     if user_text in redis_tags:
         cache_key = f"tag:{user_text}"
@@ -139,6 +153,57 @@ def handle_message(event):
                 ]
             )
         )
+
+
+def handle_command(event, user_text):
+    supabase = database.supabase
+    redis_client = database.get_redis()
+    redis_tags = database.redis_tags
+    image_url = None
+    response = None
+
+    if user_text == "/random":
+        if redis_tags:
+            randomTag = random.sample(redis_tags, 1)[0]
+            cache_key = f"tag:{randomTag}"
+            if redis_client.exists(cache_key):
+                image_url = redis_client.srandmember(cache_key)
+            else: #不太該發生，redis tag 有值 代表 redis就應該有值
+                response = supabase.rpc(
+                    'search_meme_by_tag',
+                    {'search_tag': randomTag}
+                ).execute()
+                logger.info('random tag 依然走 rpc')
+
+        else: #這其實也不該發生
+            response = supabase.rpc(
+                'search_meme_by_tag',
+                {'search_tag': 'MyGO'}
+            ).execute()
+            logger.info('random redis_tags 不存在')
+        if response is not None:
+            if response.data and len(response.data) > 0:
+                image_url = response.data[0]['image_url']
+        
+        #最不該發生的情況
+        if image_url is None:  
+            image_url = random.choice(DEFAULT_MEME_IMAGES)
+
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[
+                        ImageMessage(
+                            original_content_url=image_url,
+                            preview_image_url=image_url
+                        )
+                    ]
+                )
+            )
+
 
 #region API基礎範例 get/post
 '''
