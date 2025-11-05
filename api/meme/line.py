@@ -24,7 +24,8 @@ from linebot.v3.exceptions import (
 )
 from linebot.v3.messaging import (
     Configuration, ApiClient, MessagingApi,
-    ReplyMessageRequest, ImageMessage, TextMessage
+    ReplyMessageRequest, ImageMessage, TextMessage,
+    QuickReply, QuickReplyItem, MessageAction
 )
 from linebot.v3.webhooks import (
     MessageEvent,
@@ -203,7 +204,31 @@ def handle_command(event, user_text):
                     ]
                 )
             )
+    #20251105 測試quick reply
+    elif user_text == "help":
+        quick_reply = QuickReply(items=[
+            QuickReplyItem(action=MessageAction(label="隨機", text="/random")),
+            QuickReplyItem(action=MessageAction(label="周星馳", text="周星馳")),
+            QuickReplyItem(action=MessageAction(label="玫瑰瞳鈴眼", text="玫瑰瞳鈴眼")),
+            QuickReplyItem(action=MessageAction(label="海綿寶寶", text="驚訝")),
+            QuickReplyItem(action=MessageAction(label="MyGO", text="MyGo")),
+            QuickReplyItem(action=MessageAction(label="政治", text="政治")),
+        ])
 
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[
+                        TextMessage(
+                            text="不知道該怎麼選嗎? 以下是常見關鍵字供點選",
+                            quick_reply=quick_reply
+                        )
+                    ]
+                )
+            )
 
 #region API基礎範例 get/post
 '''
