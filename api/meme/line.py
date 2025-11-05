@@ -211,7 +211,7 @@ def handle_command(event, user_text):
             QuickReplyItem(action=MessageAction(label="隨機", text="/random")),
             QuickReplyItem(action=MessageAction(label="周星馳", text="周星馳")),
             QuickReplyItem(action=MessageAction(label="玫瑰瞳鈴眼", text="玫瑰瞳鈴眼")),
-            QuickReplyItem(action=MessageAction(label="海綿寶寶", text="驚訝")),
+            QuickReplyItem(action=MessageAction(label="海綿寶寶", text="海綿寶寶")),
             QuickReplyItem(action=MessageAction(label="MyGO", text="MyGo")),
             QuickReplyItem(action=MessageAction(label="政治", text="政治")),
         ])
