@@ -205,7 +205,8 @@ def handle_command(event, user_text):
                 )
             )
     #20251105 測試quick reply
-    elif user_text == "help":
+    elif user_text == "/help":
+        logger.info('command-help')
         quick_reply = QuickReply(items=[
             QuickReplyItem(action=MessageAction(label="隨機", text="/random")),
             QuickReplyItem(action=MessageAction(label="周星馳", text="周星馳")),
