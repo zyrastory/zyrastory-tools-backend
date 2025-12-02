@@ -99,7 +99,7 @@ def handle_message(event):
 
     supabase = database.supabase
     redis_client = database.get_redis()
-    redis_tags = database.database.get_redis_tags()  #20251202 修正tags無正常更新，於datebase引入時就暫存reference了?
+    redis_tags = database.get_redis_tags()  #20251202 修正tags無正常更新，於datebase引入時就暫存reference了?
     
     image_url = None
     response = None
