@@ -76,6 +76,10 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
         count_response = supabase.rpc('get_tag_counts').execute()
 
         if count_response.data:
+            #20251202 新增，API可直接更新tag
+            new_tags = {row["tag"] for row in count_response.data if row.get("tag")}
+            database.set_redis_tag(new_tags)
+
             for row in count_response.data:
                 tag = row["tag"]
                 db_count = row["count"]

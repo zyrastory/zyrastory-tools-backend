@@ -95,29 +95,6 @@ def init_cache():
                 #redis_client.expire(cache_key, 86400)  # 24小時
                 logger.info(f"Redis add: {tag} ({len(urls)} memes)")
                 
-    '''
-    for tag in KEYWORDS:
-        cache_key = f"tag:{tag}"
-        
-        # 已有快取就跳過 >> 手動呼叫 redis 更新即可
-        if redis_client.exists(cache_key):
-            print(f"Cache exists: {tag}")
-            continue
-        
-        # 從 DB 載入
-        response = supabase.rpc('search_memes_by_tag', {'search_tag': tag}).execute()
-        
-        if response.data:
-            urls = [m['image_url'] for m in response.data]
-            logger.info(f"Redis before add: {tag} ")
-            redis_client.sadd(cache_key, *urls)
-            #redis_client.expire(cache_key, 86400)  # 24小時
-
-            print(f"Redis add: {tag} ({len(urls)} memes)")
-            logger.info(f"Redis add: {tag} ({len(urls)} memes)")
-        else:
-            print(f"no memes for: {tag}")
-    '''
 
 def get_redis():
     global redis_client, supabase
@@ -131,3 +108,11 @@ def get_redis():
             decode_responses=True
         )
     return redis_client
+
+
+def set_redis_tag(new_tags):
+    global redis_tags
+    redis_tags = new_tags
+
+def get_redis_tags():
+    return redis_tags
