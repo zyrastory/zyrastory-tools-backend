@@ -85,6 +85,9 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
                 db_count = row["count"]
                 cache_key = f"tag:{tag}"
 
+                #20251208 新增tag數量 zset統計 (供 /count 使用)
+                redis_client.zadd("tag_count", {row["tag"]: row["count"]})
+
                 response = None
 
                 if cache_key in redis_result:

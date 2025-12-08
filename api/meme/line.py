@@ -65,7 +65,7 @@ TAG_ALIASES = {
 }
 
 # 指令
-COMMANDS = {"/random","/help"}
+COMMANDS = {"/random","/help","/count"}
 
 #KEYWORDS = {"股票", "政治", "周星馳"}
 
@@ -157,6 +157,7 @@ def handle_message(event):
 
 '''
 針對 /指令的回覆
+20251208 新增count指令 -> redis zset
 '''
 def handle_command(event, user_text):
     supabase = database.supabase
@@ -228,6 +229,29 @@ def handle_command(event, user_text):
                         TextMessage(
                             text="不知道該怎麼選嗎? 以下是常見關鍵字供點選",
                             quick_reply=quick_reply
+                        )
+                    ]
+                )
+            )
+
+    elif user_text == "/count":
+
+
+        stat_text = "\n".join(
+            f"{i}. {tag} : {int(count)} 張"
+            for i, (tag, count) in enumerate(redis_top, 1)
+        )
+
+
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=event.reply_token,
+                    messages=[
+                        TextMessage(
+                            text=stat_text
                         )
                     ]
                 )
