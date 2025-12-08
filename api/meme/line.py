@@ -234,12 +234,13 @@ def handle_command(event, user_text):
                 )
             )
 
+    #20251208 新增tag數量對應 (zset)
     elif user_text == "/count":
-
+        redis_top_count = redis_client.zrevrange("tag_count", 0, 14, withscores=True)
 
         stat_text = "\n".join(
             f"{i}. {tag} : {int(count)} 張"
-            for i, (tag, count) in enumerate(redis_top, 1)
+            for i, (tag, count) in enumerate(redis_top_count, 1)
         )
 
 
