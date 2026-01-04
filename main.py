@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from api import router
 
 from contextlib import asynccontextmanager
-import database
+from core import database
 
 import logging
 

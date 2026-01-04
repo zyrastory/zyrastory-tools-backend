@@ -8,7 +8,7 @@ import os
 
 #from supabase import create_client
 from dotenv import load_dotenv
-import database
+from core import database
 #from database import redis_client,supabase
 
 import logging
@@ -52,7 +52,8 @@ supabase = create_client(
 DEFAULT_MEME_IMAGES = [
     "https://img.zyrastory.com/default/not_found_1.jpeg",
     "https://img.zyrastory.com/default/not_found_2.jpeg",
-    "https://img.zyrastory.com/default/not_found_3.jpeg"
+    "https://img.zyrastory.com/default/not_found_3.jpeg",
+    "https://img.zyrastory.com/default/not_found_4.jpeg"
 ]
 
 # 特殊映射
@@ -67,7 +68,6 @@ TAG_ALIASES = {
 # 指令
 COMMANDS = {"/random","/help","/count"}
 
-#KEYWORDS = {"股票", "政治", "周星馳"}
 
 '''
 API: /callback
@@ -236,9 +236,14 @@ def handle_command(event, user_text):
 
     #20251208 新增tag數量對應 (zset)
     elif user_text == "/count":
+
+        total_count = redis_client.get("meme_total_count")
         redis_top_count = redis_client.zrevrange("tag_count", 0, 14, withscores=True)
 
-        stat_text = "\n".join(
+        #TODO 後續是否要對千分位調整
+        #20260102 redis新增meme總數
+        stat_text = (f"梗圖總數: {total_count} 張\n" if total_count is not None else "")
+        +"\n".join(
             f"{i}. {tag} : {int(count)} 張"
             for i, (tag, count) in enumerate(redis_top_count, 1)
         )

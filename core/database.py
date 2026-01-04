@@ -11,7 +11,6 @@ redis_client = None
 supabase = None
 redis_tags = set()  # 新增一個全域的redis tag對應
 
-#KEYWORDS = {"股票", "政治", "周星馳"}
 
 """初始化所有連線"""
 def init_connections():
@@ -94,7 +93,18 @@ def init_cache():
                 redis_client.sadd(cache_key, *urls)
                 #redis_client.expire(cache_key, 86400)  # 24小時
                 logger.info(f"Redis add: {tag} ({len(urls)} memes)")
-                
+
+    #20260102 redis新增meme總數
+    res = (
+        supabase
+        .from_("memes")
+        .select("id", count="exact")
+        .limit(1)
+        .execute()
+    )
+
+    redis_client.set("meme_total_count", res.count)
+           
 
 def get_redis():
     global redis_client, supabase

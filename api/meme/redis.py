@@ -9,8 +9,7 @@ from schemas.base import ApiResponse
 import os
 
 from dotenv import load_dotenv
-#from database import redis_client,supabase
-import database
+from core import database
 
 import logging
 
@@ -50,7 +49,7 @@ async def refresh_tag_cache(tag: str, authorization: str = Header(None)):
 
             return ApiResponse(status="success",message=message)
         else:
-            return ApiResponse(status="faild",message="no Data found")
+            return ApiResponse(status="failed",message="no Data found")
         
     except Exception as e:
         return ApiResponse(status="failed",message=str(e))
@@ -112,9 +111,22 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
                     #logger.info(f"Redis add: {tag} ({len(urls)} memes)")
                     message+="  -  success\n"
             
-            return ApiResponse(status="success",message=message)
+            #return ApiResponse(status="success",message=message)
         else:
             return ApiResponse(status="faild",message="no Data found")
+    
+        #20260102 redis新增meme總數
+        res = (
+            supabase
+            .from_("memes")
+            .select("id", count="exact")
+            .limit(1)
+            .execute()
+        )
+
+        redis_client.set("meme_total_count", res.count)
+        return ApiResponse(status="success",message=message)
+    
     except Exception as e:
         return ApiResponse(status="failed",message=str(e))
 
