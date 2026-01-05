@@ -1,20 +1,20 @@
 from pydantic import BaseModel,ConfigDict
 from typing import List
 
-class imgBase(BaseModel):
+class ImgBase(BaseModel):
     pass
 
-class fileRatio(BaseModel):
+class FileRatio(BaseModel):
     filename: str
     org_size_str: str
     new_size_str: str
     ratio: float
 
-class imgResponse(imgBase):
+class ImgResponse(ImgBase):
     memo: str
     download_url: str
     download_all_url: str
-    ratios: List[fileRatio]
+    ratios: List[FileRatio]
 
 
 #class Config:

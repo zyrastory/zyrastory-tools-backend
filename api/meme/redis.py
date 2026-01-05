@@ -21,6 +21,15 @@ router = APIRouter()
 #KEYWORDS = {"股票", "政治", "周星馳"}
 
 
+'''
+API: POST /cache/update-tag/{tag}
+功能說明: 更新指定標籤的 Redis 快取
+參數:
+    tag (str): 要更新的標籤名稱
+    authorization (str): Bearer Token，用於驗證管理員權限
+回傳: ApiResponse - 包含操作狀態與訊息
+備註: 需要管理員權限（ADMIN_TOKEN）
+'''
 @router.post("/update-tag/{tag}")
 async def refresh_tag_cache(tag: str, authorization: str = Header(None)):
     verify_admin(authorization)
@@ -55,6 +64,17 @@ async def refresh_tag_cache(tag: str, authorization: str = Header(None)):
         return ApiResponse(status="failed",message=str(e))
 
 
+'''
+API: POST /cache/update-all-tag
+功能說明: 更新所有標籤的 Redis 快取，同步資料庫與快取資料
+參數:
+    authorization (str): Bearer Token，用於驗證管理員權限
+回傳: ApiResponse - 包含操作狀態與詳細訊息
+備註: 
+    - 需要管理員權限（ADMIN_TOKEN）
+    - 會比較 Redis 與資料庫的標籤數量，不一致時重新建立快取
+    - 同時更新 tag_count (Sorted Set) 和 meme_total_count
+'''
 @router.post("/update-all-tag")
 async def refresh_all_tag_cache( authorization: str = Header(None)):
     verify_admin(authorization)
@@ -132,7 +152,13 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
 
 
 
-'''基本驗證'''
+'''
+基本驗證函數
+功能說明: 驗證管理員授權 Token
+參數:
+    authorization (str): Bearer Token 字串
+拋出異常: HTTPException 403 - 當 Token 不正確時
+'''
 def verify_admin(authorization: str):
     admin_token = os.getenv('ADMIN_TOKEN')
     if authorization != f"Bearer {admin_token}":

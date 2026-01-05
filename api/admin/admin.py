@@ -7,9 +7,9 @@ from fastapi import  APIRouter, FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
 from schemas.base import ApiResponse
-from schemas.login import loginRequest
-from schemas.dashboard import dashboardResponse, redis_tag_count
-from schemas.memes import MemeUpdateRequest, memeSearchRequest,MemeResponse,MemeSearchResponse
+from schemas.login import LoginRequest
+from schemas.dashboard import DashboardResponse, RedisTagCount
+from schemas.memes import MemeUpdateRequest, MemeSearchRequest, MemeResponse, MemeSearchResponse
 import os
 
 from dotenv import load_dotenv
@@ -32,8 +32,16 @@ admin_router = APIRouter(
 
 
 # region 登入相關
+'''
+API: POST /admin/login
+功能說明: 管理員登入，驗證帳號密碼後回傳 JWT Token
+參數:
+    login_data (LoginRequest): 登入資訊，包含 username 和 password
+    login_response (Response): FastAPI Response 物件，用於設定 Cookie
+回傳: dict - {"ok": True}，JWT Token 會設定在 Cookie 中
+'''
 @login_router.post("/login")
-def admin_login(login_data: loginRequest,login_response: Response):
+def admin_login(login_data: LoginRequest, login_response: Response):
     supabase = database.supabase
 
     #hashed_str = hash_password(login_data.password)
@@ -47,8 +55,8 @@ def admin_login(login_data: loginRequest,login_response: Response):
     # 取得結果
     if response is not None:
         if response.data and len(response.data) > 0:
-            rpcData = response.data[0]
-            hashed_password = rpcData['hashed_password']
+            rpc_data = response.data[0]
+            hashed_password = rpc_data['hashed_password']
             result = True
         
     
@@ -83,7 +91,11 @@ def admin_login(login_data: loginRequest,login_response: Response):
     return {"ok": True}
 
 '''
-確認token是否有效
+API: GET /admin/me
+功能說明: 驗證當前 JWT Token 是否有效
+參數:
+    user_message: 透過 Depends 自動從 Cookie 取得並驗證的 Token
+回傳: Response - HTTP 200 狀態碼
 '''
 @login_router.get("/me")
 async def check_token(user_message = Depends(verify_token_from_request)):
@@ -92,12 +104,18 @@ async def check_token(user_message = Depends(verify_token_from_request)):
 # endregion
 
 # region 取得dashboard資料
+'''
+API: GET /admin/dashboard
+功能說明: 取得管理後台 Dashboard 統計資料
+回傳: DashboardResponse - 包含梗圖總數與標籤統計資料
+備註: 需要管理員權限（JWT Token）
+'''
 @admin_router.get("/dashboard")
 async def get_dashboard_data():
     redis_client = database.redis_client
     redis_count = redis_client.zrevrange("tag_count", 0, 19, withscores=True)
     formatted_tags = [
-        redis_tag_count(
+        RedisTagCount(
             tag_name = tag, 
             count = int(count)
         )
@@ -105,18 +123,31 @@ async def get_dashboard_data():
     ]
 
     meme_total_count = int(redis_client.get("meme_total_count"))
-    response = dashboardResponse( total_count = meme_total_count, tag_counts = formatted_tags)
+    response = DashboardResponse(total_count=meme_total_count, tag_counts=formatted_tags)
     return response
 # endregion
 
 # region 梗圖管理  嘗試走Restful風格
 
+'''
+API: GET /admin/memes
+功能說明: 依條件搜尋梗圖，支援分頁、關鍵字、標籤、狀態篩選
+參數:
+    condition (MemeSearchRequest): 透過 Query String 傳入的搜尋條件
+        - page (int): 頁碼，從 1 開始
+        - page_size (int): 每頁筆數，範圍 1-200
+        - content (str, optional): 內容關鍵字搜尋
+        - tags (str, optional): 標籤篩選
+        - is_active (str, optional): 啟用狀態篩選 ('1' 或 '0')
+回傳: MemeSearchResponse - 包含梗圖列表、總數、分頁資訊
+備註: 需要管理員權限（JWT Token）
+'''
 @admin_router.get("/memes")
-async def search_memes_by_condition(conditon: memeSearchRequest = Depends()):
+async def search_memes_by_condition(condition: MemeSearchRequest = Depends()):
     supabase = database.supabase
 
-    start = (conditon.page - 1) * conditon.page_size          # 從 1 開始
-    end = start + conditon.page_size-1
+    start = (condition.page - 1) * condition.page_size          # 從 1 開始
+    end = start + condition.page_size-1
 
     #加上count exact會取得總筆數
     query = supabase.table("memes") \
@@ -124,16 +155,16 @@ async def search_memes_by_condition(conditon: memeSearchRequest = Depends()):
         .order("id", desc=False)
 
     #關鍵字、內容
-    if conditon.content:
-        query = query.ilike("content", f"%{conditon.content}%")
+    if condition.content:
+        query = query.ilike("content", f"%{condition.content}%")
 
     #標籤
-    if conditon.tags:
-        query = query.contains("tags", [conditon.tags])
+    if condition.tags:
+        query = query.contains("tags", [condition.tags])
 
     #狀態(啟用/停用)
-    if conditon.is_active:
-        query = query.eq("is_active", conditon.is_active == '1')
+    if condition.is_active:
+        query = query.eq("is_active", condition.is_active == '1')
 
     # 分頁 + 取得總數
     response = query.range(start, end).execute()
@@ -144,16 +175,28 @@ async def search_memes_by_condition(conditon: memeSearchRequest = Depends()):
 
     meme_list = [MemeResponse(**meme) for meme in memes]
 
-    total_pages = (total + conditon.page_size - 1) // conditon.page_size if total else 0
+    total_pages = (total + condition.page_size - 1) // condition.page_size if total else 0
 
     return MemeSearchResponse(
         data=meme_list,
         total=total,
-        page=conditon.page,
-        page_size=conditon.page_size,
+        page=condition.page,
+        page_size=condition.page_size,
         total_pages=total_pages,
     )
 
+'''
+API: PATCH /admin/memes/{meme_id}
+功能說明: 更新指定梗圖的內容、標籤或啟用狀態
+參數:
+    meme_id (str): 梗圖 ID
+    request (MemeUpdateRequest): 要更新的欄位
+        - content (str, optional): 內容
+        - tags (List[str], optional): 標籤列表
+        - is_active (bool, optional): 啟用狀態
+回傳: None 或 ApiResponse - 更新結果
+備註: 需要管理員權限（JWT Token）
+'''
 @admin_router.patch("/memes/{meme_id}")
 async def update_memes(meme_id: str, request: MemeUpdateRequest):
     supabase = database.supabase

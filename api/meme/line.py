@@ -1,7 +1,7 @@
 from fastapi import  APIRouter, FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
-from schemas.user import userRequest, userResponse
+from schemas.user import UserRequest, UserResponse
 
 import random
 import os
@@ -70,8 +70,13 @@ COMMANDS = {"/random","/help","/count"}
 
 
 '''
-API: /callback
-功能說明: 供line webhook 呼叫用
+API: POST /callback
+功能說明: LINE Bot Webhook 端點，接收 LINE 平台推送的訊息事件
+參數:
+    request (Request): FastAPI Request 物件，包含 Webhook 請求內容
+    x_line_signature (str): LINE 平台簽名，用於驗證請求來源
+回傳: str - 'OK'，表示成功接收
+備註: 此端點會觸發 handle_message 處理訊息
 '''
 @router.post("/callback")
 async def callback(
@@ -168,14 +173,14 @@ def handle_command(event, user_text):
 
     if user_text == "/random":
         if redis_tags:
-            randomTag = random.choice(list(redis_tags))
-            cache_key = f"tag:{randomTag}"
+            random_tag = random.choice(list(redis_tags))
+            cache_key = f"tag:{random_tag}"
             if redis_client.exists(cache_key):
                 image_url = redis_client.srandmember(cache_key)
             else: #不太該發生，redis tag 有值 代表 redis就應該有值
                 response = supabase.rpc(
                     'search_meme_by_tag',
-                    {'search_tag': randomTag}
+                    {'search_tag': random_tag}
                 ).execute()
                 logger.info('random tag 依然走 rpc')
 
@@ -266,7 +271,7 @@ def handle_command(event, user_text):
 #region API基礎範例 get/post
 '''
 no: int = Query(..., description="使用者編號")  一般取query string方式
-Depends()  >> 把 userRequest 當 callable 呼叫，並自動從 query string 填值
+Depends()  >> 把 UserRequest 當 callable 呼叫，並自動從 query string 填值
 post 不需要 會自動解析
 '''
 
@@ -288,21 +293,35 @@ def search_memes(q: str):
     return {"meme": meme}
 '''
 
-@router.get("/example", response_model=userResponse)
-def example(user: userRequest = Depends()):
+'''
+API: GET /example
+功能說明: 範例 GET 端點（示範用）
+參數:
+    user (UserRequest): 透過 Query String 傳入的使用者資訊
+回傳: UserResponse - 使用者回應資料
+'''
+@router.get("/example", response_model=UserResponse)
+def example(user: UserRequest = Depends()):
     
     print("in")
-    return userResponse(
+    return UserResponse(
         no=user.no,
         name=user.name,
         memo="備註範例"
     )
 
-@router.post("/post_example", response_model=userResponse)
-def example(user: userRequest):
+'''
+API: POST /post_example
+功能說明: 範例 POST 端點（示範用）
+參數:
+    user (UserRequest): 透過 Request Body 傳入的使用者資訊
+回傳: UserResponse - 使用者回應資料
+'''
+@router.post("/post_example", response_model=UserResponse)
+def example_post(user: UserRequest):
     
     print("post")
-    return userResponse(
+    return UserResponse(
         no=user.no,
         name=user.name,
         memo="備註範例_post"

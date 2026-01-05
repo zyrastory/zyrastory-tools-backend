@@ -1,7 +1,7 @@
 from pydantic import BaseModel,ConfigDict
 from typing import List
 
-class loginRequest(BaseModel):
+class LoginRequest(BaseModel):
     username: str
     password: str
 

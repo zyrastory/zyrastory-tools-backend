@@ -1,15 +1,15 @@
 from pydantic import BaseModel,ConfigDict
 
-class userBase(BaseModel):
+class UserBase(BaseModel):
     name: str
     no: int
 
-class userRequest(userBase):
+class UserRequest(UserBase):
     pass  
 
 #開放給create?  只是example
-class userCreate(userBase):
+class UserCreate(UserBase):
     pass  
 
-class userResponse(userBase):
+class UserResponse(UserBase):
     memo: str

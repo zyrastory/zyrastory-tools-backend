@@ -2,8 +2,8 @@ from fastapi import FastAPI, UploadFile, File, Form, APIRouter, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
 #from app import schemas
-from schemas.user import userRequest, userResponse
-from schemas.img import fileRatio, imgResponse
+from schemas.user import UserRequest, UserResponse
+from schemas.img import FileRatio, ImgResponse
 
 from PIL import Image
 from io import BytesIO
@@ -18,9 +18,14 @@ TMP_DIR = 'tmp'
 
 
 '''
-API: /upload
-功能說明: 傳入圖檔(最多N張)，並依照所選比例轉檔
-20250921 新增keep參數，保留原始檔案格式 僅壓縮
+API: POST /upload
+功能說明: 傳入圖檔(最多N張)，並依照所選格式與品質轉檔或壓縮
+參數:
+    format_type (str): 目標格式，支援 'jpeg', 'png', 'webp' 等，或 'keep' 保留原始格式
+    quality_value (int): 圖片品質 (1-100)
+    files (List[UploadFile]): 上傳的圖片檔案列表
+回傳: ImgResponse - 包含處理結果、下載連結與壓縮比例資訊
+備註: 20250921 新增keep參數，保留原始檔案格式 僅壓縮
 '''
 @router.post("/upload")
 async def upload(
@@ -30,12 +35,12 @@ async def upload(
     quality_value: int = Form(...),
     files: List[UploadFile] = File(..., alias="upload_files")
 ):
-    tmpUUID = get_uuid()    #本次執行的uuid
+    tmp_uuid = get_uuid()    #本次執行的uuid
     ratios = []
-    download_url = f"download/{tmpUUID}"
-    download_all_url = f"downloadAll/{tmpUUID}"
+    download_url = f"download/{tmp_uuid}"
+    download_all_url = f"downloadAll/{tmp_uuid}"
 
-    folder_path = os.path.join(TMP_DIR, tmpUUID)
+    folder_path = os.path.join(TMP_DIR, tmp_uuid)
     os.makedirs(folder_path, exist_ok=True)
 
     for file in files:
@@ -67,9 +72,9 @@ async def upload(
         org_size_str = format_file_size(org_size)
         new_size_str = format_file_size(new_size)
 
-        ratios.append(fileRatio(filename=save_name, org_size_str=org_size_str,new_size_str=new_size_str, ratio=ratio))
+        ratios.append(FileRatio(filename=save_name, org_size_str=org_size_str, new_size_str=new_size_str, ratio=ratio))
     
-    return imgResponse(
+    return ImgResponse(
         memo="轉檔完成",
         download_url=download_url,
         download_all_url = download_all_url,
@@ -78,6 +83,14 @@ async def upload(
     )
 
 
+'''
+API: GET /download/{uuid}/{filename}
+功能說明: 下載單一處理過的圖片檔案
+參數:
+    uuid (str): 處理任務的唯一識別碼
+    filename (str): 要下載的檔案名稱
+回傳: FileResponse - 圖片檔案
+'''
 @router.get("/download/{uuid}/{filename}")
 def download(uuid: str, filename: str):
 
@@ -93,11 +106,14 @@ def download(uuid: str, filename: str):
     return FileResponse(file_path, media_type=mime_type, filename=filename)
 
 '''
-API: /downloadAll
-功能說明: zip下載該uuid的檔案
+API: GET /downloadAll/{uuid}
+功能說明: 將該 uuid 的所有處理過的檔案打包成 ZIP 下載
+參數:
+    uuid (str): 處理任務的唯一識別碼
+回傳: StreamingResponse - ZIP 壓縮檔
 '''
 @router.get("/downloadAll/{uuid}")
-def download(uuid: str):
+def download_all(uuid: str):
 
     folder_path = os.path.join(TMP_DIR, uuid)
 
@@ -128,25 +144,39 @@ def download(uuid: str):
 #region API基礎範例 get/post
 '''
 no: int = Query(..., description="使用者編號")  一般取query string方式
-Depends()  >> 把 userRequest 當 callable 呼叫，並自動從 query string 填值
+Depends()  >> 把 UserRequest 當 callable 呼叫，並自動從 query string 填值
 post 不需要 會自動解析
 '''
 
-@router.get("/example", response_model=userResponse)
-def example(user: userRequest = Depends()):
+'''
+API: GET /example
+功能說明: 範例 GET 端點（示範用）
+參數:
+    user (UserRequest): 透過 Query String 傳入的使用者資訊
+回傳: UserResponse - 使用者回應資料
+'''
+@router.get("/example", response_model=UserResponse)
+def example(user: UserRequest = Depends()):
     
     print("in")
-    return userResponse(
+    return UserResponse(
         no=user.no,
         name=user.name,
         memo="備註範例"
     )
 
-@router.post("/post_example", response_model=userResponse)
-def example(user: userRequest):
+'''
+API: POST /post_example
+功能說明: 範例 POST 端點（示範用）
+參數:
+    user (UserRequest): 透過 Request Body 傳入的使用者資訊
+回傳: UserResponse - 使用者回應資料
+'''
+@router.post("/post_example", response_model=UserResponse)
+def example_post(user: UserRequest):
     
     print("post")
-    return userResponse(
+    return UserResponse(
         no=user.no,
         name=user.name,
         memo="備註範例_post"

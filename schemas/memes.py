@@ -3,7 +3,7 @@ from typing import Optional, Any, List
 from schemas.base import CommaInt
 from datetime import datetime
 
-class memeSearchRequest(BaseModel):
+class MemeSearchRequest(BaseModel):
     page: int = Field(..., ge=1)                #Greater than or Equal to / Less than or Equal to 也就是直接在模型驗證數值大於小於
     page_size: int = Field(..., ge=1, le=200)
     content: Optional[str] = None
