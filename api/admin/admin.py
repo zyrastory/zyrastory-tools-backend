@@ -123,7 +123,9 @@ async def get_dashboard_data():
     ]
 
     meme_total_count = int(redis_client.get("meme_total_count"))
-    response = DashboardResponse(total_count=meme_total_count, tag_counts=formatted_tags)
+    tags_total_count = int(redis_client.get("tags_total_count"))
+    
+    response = DashboardResponse(meme_total_count=meme_total_count, tags_total_count=tags_total_count, tag_counts=formatted_tags)
     return response
 # endregion
 
