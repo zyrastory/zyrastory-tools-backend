@@ -5,15 +5,11 @@ from api import router
 from contextlib import asynccontextmanager
 from core import database
 
-import logging
+from core.logger import logger
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()   #docker log
-    ]
-)
+# 已經在 core.logger 中完成初始化，這裡不需要 basicConfig
+logger.info("Starting Zyrastory API...")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

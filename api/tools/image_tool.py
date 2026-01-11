@@ -12,6 +12,7 @@ import os
 
 import time, uuid
 import mimetypes
+from core.logger import logger
 
 router = APIRouter()
 TMP_DIR = 'tmp'
@@ -28,14 +29,15 @@ API: POST /upload
 備註: 20250921 新增keep參數，保留原始檔案格式 僅壓縮
 '''
 @router.post("/upload")
-async def upload(
-    #預設用前面的參數名稱，假如要不同的話要用alias別名
-    #query string 的話 quality: int = Query(...), 
+def upload(
     format_type: str = Form(...),
     quality_value: int = Form(...),
     files: List[UploadFile] = File(..., alias="upload_files")
 ):
+    start_time = time.time()
     tmp_uuid = get_uuid()    #本次執行的uuid
+    logger.info(f"[Upload] Task {tmp_uuid} started. Files: {len(files)}, Format: {format_type}, Quality: {quality_value}")
+
     ratios = []
     download_url = f"download/{tmp_uuid}"
     download_all_url = f"downloadAll/{tmp_uuid}"
@@ -43,44 +45,60 @@ async def upload(
     folder_path = os.path.join(TMP_DIR, tmp_uuid)
     os.makedirs(folder_path, exist_ok=True)
 
-    for file in files:
-        content_bytes = await file.read()     # 讀取完整二進位內容
-        org_size = len(content_bytes)
+    try:
+        for file in files:
+            file_start = time.time()
+            content_bytes = file.file.read()     # 同步讀取完整二進位內容
+            org_size = len(content_bytes)
 
-        tmp_bytes = BytesIO()
-        with Image.open(BytesIO(content_bytes)) as img:
-            if format_type=='jpeg':
-                img = img.convert("RGB") 
-            
+            tmp_bytes = BytesIO()
+            try:
+                with Image.open(BytesIO(content_bytes)) as img:
+                    if format_type=='jpeg':
+                        img = img.convert("RGB") 
+                    
+                    if format_type=='keep':
+                        save_format = img.format if img.format else 'JPEG'
+                        img.save(tmp_bytes, save_format.lower(), quality=quality_value, optimize=True)
+                    else:
+                        img.save(tmp_bytes, format_type, quality=quality_value, optimize=True)
+            except Exception as e:
+                logger.error(f"[Upload] Error processing image {file.filename}: {str(e)}")
+                continue
+
+            tmp_bytes.seek(0)
+            processed_data = tmp_bytes.getvalue()
+            new_size = len(processed_data)
+            ratio = round((new_size / org_size) * 100, 2)
+
             if format_type=='keep':
-                img.save(tmp_bytes, img.format.lower(), quality=quality_value, optimize=True)
+                save_name = file.filename
             else:
-                img.save(tmp_bytes, format_type, quality=quality_value, optimize=True)
+                save_name = file.filename.rsplit(".", 1)[0] + "." + format_type
+            
+            save_path = os.path.join(folder_path, save_name)
+            with open(save_path, "wb") as f:
+                f.write(processed_data)
 
-        tmp_bytes.seek(0)
-        new_size = len(tmp_bytes.getvalue())
-        ratio = round((new_size / org_size) * 100, 2)
+            org_size_str = format_file_size(org_size)
+            new_size_str = format_file_size(new_size)
 
-        if format_type=='keep':
-            save_name = file.filename
-        else:
-            save_name = file.filename.rsplit(".", 1)[0] + "." + format_type
-        save_path = os.path.join(folder_path, save_name)
-        with open(save_path, "wb") as f:
-            f.write(tmp_bytes.read())
+            ratios.append(FileRatio(filename=save_name, org_size_str=org_size_str, new_size_str=new_size_str, ratio=ratio))
+            logger.info(f"[Upload] File {save_name} processed. Ratio: {ratio}%, Time: {time.time() - file_start:.2f}s")
+        
+        total_time = time.time() - start_time
+        logger.info(f"[Upload] Task {tmp_uuid} completed. Total Time: {total_time:.2f}s")
 
-        org_size_str = format_file_size(org_size)
-        new_size_str = format_file_size(new_size)
-
-        ratios.append(FileRatio(filename=save_name, org_size_str=org_size_str, new_size_str=new_size_str, ratio=ratio))
-    
-    return ImgResponse(
-        memo="轉檔完成",
-        download_url=download_url,
-        download_all_url = download_all_url,
-        ratios=ratios,
-        quality_value=quality_value
-    )
+        return ImgResponse(
+            memo="轉檔完成",
+            download_url=download_url,
+            download_all_url = download_all_url,
+            ratios=ratios,
+            quality_value=quality_value
+        )
+    except Exception as e:
+        logger.exception(f"[Upload] Unexpected error in task {tmp_uuid}: {str(e)}")
+        raise e
 
 
 '''
