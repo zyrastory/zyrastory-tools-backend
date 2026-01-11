@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir poetry \
 # 複製專案程式碼
 COPY . /app
 
-RUN mkdir -p /app/tmp
+RUN mkdir -p /app/tmp /app/logs && chmod 755 /app/tmp /app/logs
 
 # 啟動命令
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
