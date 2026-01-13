@@ -94,6 +94,10 @@ async def refresh_all_tag_cache( authorization: str = Header(None)):
         # DB count
         count_response = supabase.rpc('get_tag_counts').execute()
 
+        # 20260107 新增超過10筆 tags 總數
+        tags_total_count = len(count_response.data or [])
+        redis_client.set("tags_total_count", tags_total_count)
+
         if count_response.data:
             #20251202 新增，API可直接更新tag
             new_tags = {row["tag"] for row in count_response.data if row.get("tag")}

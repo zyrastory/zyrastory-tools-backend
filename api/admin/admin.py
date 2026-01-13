@@ -7,7 +7,7 @@ from fastapi import  APIRouter, FastAPI, Request, HTTPException, Header, Depends
 from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
 from schemas.base import ApiResponse
-from schemas.login import LoginRequest
+from schemas.login import LoginRequest, LoginResponse
 from schemas.dashboard import DashboardResponse, RedisTagCount
 from schemas.memes import MemeUpdateRequest, MemeSearchRequest, MemeResponse, MemeSearchResponse
 import os
@@ -40,7 +40,7 @@ API: POST /admin/login
     login_response (Response): FastAPI Response 物件，用於設定 Cookie
 回傳: dict - {"ok": True}，JWT Token 會設定在 Cookie 中
 '''
-@login_router.post("/login")
+@login_router.post("/login",response_model=LoginResponse)
 def admin_login(login_data: LoginRequest, login_response: Response):
     supabase = database.supabase
 
@@ -51,12 +51,14 @@ def admin_login(login_data: LoginRequest, login_response: Response):
     }).execute()
 
     result = False
+    display_name = ''
 
     # 取得結果
     if response is not None:
         if response.data and len(response.data) > 0:
             rpc_data = response.data[0]
             hashed_password = rpc_data['hashed_password']
+            display_name = rpc_data['display_name']
             result = True
         
     
@@ -88,7 +90,12 @@ def admin_login(login_data: LoginRequest, login_response: Response):
         path="/"
     )
 
-    return {"ok": True}
+    return {
+        "user":{
+            "username": login_data.username,
+            "display_name": display_name
+        }
+    }
 
 '''
 API: GET /admin/me
@@ -123,7 +130,9 @@ async def get_dashboard_data():
     ]
 
     meme_total_count = int(redis_client.get("meme_total_count"))
-    response = DashboardResponse(total_count=meme_total_count, tag_counts=formatted_tags)
+    tags_total_count = int(redis_client.get("tags_total_count"))
+    
+    response = DashboardResponse(meme_total_count=meme_total_count, tags_total_count=tags_total_count, tag_counts=formatted_tags)
     return response
 # endregion
 

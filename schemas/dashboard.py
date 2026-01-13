@@ -7,5 +7,6 @@ class RedisTagCount(BaseModel):
     count: int
 
 class DashboardResponse(BaseModel):
-    total_count: CommaInt
+    meme_total_count: CommaInt
+    tags_total_count: CommaInt
     tag_counts: List[RedisTagCount]

@@ -53,7 +53,7 @@ DEFAULT_MEME_IMAGES = [
     "https://img.zyrastory.com/default/not_found_1.jpeg",
     "https://img.zyrastory.com/default/not_found_2.jpeg",
     "https://img.zyrastory.com/default/not_found_3.jpeg",
-    "https://img.zyrastory.com/default/not_found_4.jpeg"
+    "https://img.zyrastory.com/default/not_found_4-1.jpeg"
 ]
 
 # 特殊映射

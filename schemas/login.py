@@ -5,6 +5,12 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class UserInfo(BaseModel):
+    username: str
+    display_name: str
+
+class LoginResponse(BaseModel):
+    user: UserInfo
 
 #class Config:
     #orm_mode = True  # 讓 SQLAlchemy model 可以轉換成 Pydantic schema
