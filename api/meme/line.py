@@ -5,6 +5,7 @@ from schemas.user import UserRequest, UserResponse
 
 import random
 import os
+from datetime import datetime
 
 #from supabase import create_client
 from dotenv import load_dotenv
@@ -68,6 +69,44 @@ TAG_ALIASES = {
 # 指令
 COMMANDS = {"/random","/help","/count"}
 
+# === 統計記錄輔助函數 ===
+def record_statistics(redis_client, tag: str = None, images_sent: int = 0):
+    """
+    記錄統計數據到 Redis (非阻塞設計，容許誤差)
+    
+    Args:
+        redis_client: Redis 客戶端
+        tag: 搜尋的標籤 (可選)
+        images_sent: 發送的圖片數量 (0=未找到圖片, 1=成功發送)
+    """
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        
+        # 1. 記錄今日呼叫次數
+        redis_client.incr(f"stats:calls:{today}")
+        redis_client.expire(f"stats:calls:{today}", 86400 * 7)  # 保留7天
+        
+        # 2. 記錄今日提供圖片數 (只有成功找到圖片才計數)
+        if images_sent > 0:
+            redis_client.incrby(f"stats:images:{today}", images_sent)
+            redis_client.expire(f"stats:images:{today}", 86400 * 7)
+            
+            # 3. 累計提供圖片數 (永久)
+            redis_client.incr("stats:images:total", images_sent)
+        
+        # 4. 記錄熱門關鍵字 (只有有效tag才記錄)
+        if tag:
+            # 每日熱門
+            redis_client.zincrby(f"stats:hot_tags:day:{today}", 1, tag)
+            redis_client.expire(f"stats:hot_tags:day:{today}", 86400 * 35)  # 保留35天
+            
+            # 累計至今熱門
+            redis_client.zincrby("stats:hot_tags:all_time", 1, tag)
+            
+    except Exception as e:
+        # 統計失敗不影響主流程，僅記錄日誌
+        logger.error(f"Failed to record statistics: {e}")
+
 
 '''
 API: POST /callback
@@ -108,6 +147,7 @@ def handle_message(event):
     
     image_url = None
     response = None
+    matched_tag = None  # 用於統計的標籤
 
     logger.info(redis_tags)
 
@@ -117,6 +157,7 @@ def handle_message(event):
 
     #20251026 新增關鍵字 redis 判斷 20251102 移除寫死關鍵字判斷
     if user_text in redis_tags:
+        matched_tag = user_text  # 記錄匹配的標籤
         cache_key = f"tag:{user_text}"
         if redis_client.exists(cache_key):
             image_url = redis_client.srandmember(cache_key)
@@ -144,6 +185,10 @@ def handle_message(event):
     if image_url is None:  
         # 沒找到，隨機一筆預設圖
         image_url = random.choice(DEFAULT_MEME_IMAGES)
+    
+    # === 統計記錄 (非阻塞，發送圖片後才記錄) ===
+    images_sent = 1 if image_url and not image_url.startswith("https://img.zyrastory.com/default/") else 0
+    record_statistics(redis_client, tag=matched_tag, images_sent=images_sent)
     
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)

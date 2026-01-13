@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
 from schemas.base import ApiResponse
 from schemas.login import LoginRequest, LoginResponse
-from schemas.dashboard import DashboardResponse, RedisTagCount
+from schemas.dashboard import DashboardResponse, RedisTagCount, HotKeyword
 from schemas.memes import MemeUpdateRequest, MemeSearchRequest, MemeResponse, MemeSearchResponse
 import os
 
@@ -119,7 +119,11 @@ API: GET /admin/dashboard
 '''
 @admin_router.get("/dashboard")
 async def get_dashboard_data():
-    redis_client = database.redis_client
+    from datetime import datetime
+    redis_client = database.get_redis()
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    # 原有的 tag counts
     redis_count = redis_client.zrevrange("tag_count", 0, 19, withscores=True)
     formatted_tags = [
         RedisTagCount(
@@ -132,8 +136,34 @@ async def get_dashboard_data():
     meme_total_count = int(redis_client.get("meme_total_count"))
     tags_total_count = int(redis_client.get("tags_total_count"))
     
-    response = DashboardResponse(meme_total_count=meme_total_count, tags_total_count=tags_total_count, tag_counts=formatted_tags)
+    # 新增：統計數據
+    today_calls = redis_client.get(f"stats:calls:{today}")
+    today_calls = int(today_calls) if today_calls else 0
+    
+    today_images = redis_client.get(f"stats:images:{today}")
+    today_images = int(today_images) if today_images else 0
+    
+    total_images = redis_client.get("stats:images:total")
+    total_images = int(total_images) if total_images else 0
+    
+    # 熱門關鍵字（Top 20）
+    hot_tags = redis_client.zrevrange("stats:hot_tags:all_time", 0, 19, withscores=True)
+    hot_tags_list = [
+        HotKeyword(keyword=tag, count=int(score))
+        for tag, score in hot_tags
+    ]
+    
+    response = DashboardResponse(
+        meme_total_count=meme_total_count, 
+        tags_total_count=tags_total_count, 
+        tag_counts=formatted_tags,
+        today_calls=today_calls,
+        today_images=today_images,
+        total_images_served=total_images,
+        hot_keywords=hot_tags_list
+    )
     return response
+
 # endregion
 
 # region 梗圖管理  嘗試走Restful風格
