@@ -290,12 +290,13 @@ def handle_command(event, user_text):
         total_count = redis_client.get("meme_total_count")
         redis_top_count = redis_client.zrevrange("tag_count", 0, 14, withscores=True)
 
-        #TODO 後續是否要對千分位調整
         #20260102 redis新增meme總數
-        stat_text = (f"梗圖總數: {total_count} 張\n" if total_count is not None else "")
-        +"\n".join(
-            f"{i}. {tag} : {int(count)} 張"
-            for i, (tag, count) in enumerate(redis_top_count, 1)
+        stat_text = (
+            (f"梗圖總數: {int(total_count):,} 張\n" if total_count is not None else "") +
+            "\n".join(
+                f"{i}. {tag} : {int(count):,} 張"
+                for i, (tag, count) in enumerate(redis_top_count, 1)
+            )
         )
 
 
