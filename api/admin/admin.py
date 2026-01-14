@@ -164,6 +164,21 @@ async def get_dashboard_data():
     )
     return response
 
+'''
+API: POST /admin/refresh-cache
+功能說明: 手動觸發 Redis 快取更新
+回傳: ApiResponse - 操作狀態與訊息
+'''
+@admin_router.post("/refresh-cache")
+async def refresh_redis_cache():
+    try:
+        database.init_cache()
+        logger.info("Redis cache refreshed successfully via admin endpoint")
+        return ApiResponse(status="success", message="Redis 快取已成功更新")
+    except Exception as e:
+        logger.error(f"Failed to refresh Redis cache: {e}")
+        return ApiResponse(status="failed", message=f"更新失敗: {str(e)}")
+
 # endregion
 
 # region 梗圖管理  嘗試走Restful風格
