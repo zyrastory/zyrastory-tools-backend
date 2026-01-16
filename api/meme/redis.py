@@ -10,10 +10,7 @@ import os
 
 from dotenv import load_dotenv
 from core import database
-
-import logging
-
-logger = logging.getLogger(__name__)
+from core.logger import logger
 
 load_dotenv() 
 

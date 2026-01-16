@@ -8,9 +8,7 @@ import redis
 import os
 
 from dotenv import load_dotenv
-import logging
-
-logger = logging.getLogger(__name__)
+from core.logger import logger
 
 
 from argon2 import PasswordHasher

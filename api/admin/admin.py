@@ -15,11 +15,7 @@ import os
 from dotenv import load_dotenv
 from core import database
 from core.security import create_token, verify_token_from_request, hash_password,verify_password
-
-
-import logging
-
-logger = logging.getLogger(__name__)
+from core.logger import logger
 
 load_dotenv() 
 
