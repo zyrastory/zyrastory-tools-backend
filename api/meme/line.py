@@ -10,11 +10,8 @@ from datetime import datetime
 #from supabase import create_client
 from dotenv import load_dotenv
 from core import database
+from core.logger import logger
 #from database import redis_client,supabase
-
-import logging
-
-logger = logging.getLogger(__name__)
 
 
 from linebot.v3 import (
