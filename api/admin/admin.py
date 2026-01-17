@@ -10,6 +10,7 @@ from schemas.base import ApiResponse
 from schemas.login import LoginRequest, LoginResponse
 from schemas.dashboard import DashboardResponse, RedisTagCount, HotKeyword
 from schemas.memes import MemeUpdateRequest, MemeSearchRequest, MemeResponse, MemeSearchResponse
+from schemas.redis_inspect import RedisInspectResponse, RedisTagInspection
 import os
 
 from dotenv import load_dotenv
@@ -174,6 +175,62 @@ async def refresh_redis_cache():
     except Exception as e:
         logger.error(f"Failed to refresh Redis cache: {e}")
         return ApiResponse(status="failed", message=f"更新失敗: {str(e)}")
+
+'''
+API: GET /admin/redis/inspect
+功能說明: 檢查 Redis ZSET (tag_count) 與 SET (tag:*) 之間的數據一致性
+回傳: RedisInspectResponse - 包含所有 tag 的一致性檢查結果
+備註: 需要管理員權限（JWT Token）
+'''
+@admin_router.get("/redis/inspect", response_model=RedisInspectResponse)
+async def inspect_redis_consistency():
+    redis_client = database.redis_client
+    
+    try:
+        inspections = []
+        
+        # 掃描所有 tag:* keys
+        tag_keys = list(redis_client.scan_iter("tag:*"))
+        
+        for key in tag_keys:
+            # 提取 tag 名稱
+            tag_name = key.replace("tag:", "")
+            
+            # 取得 SET 中的實際數量
+            set_count = redis_client.scard(key)
+            
+            # 取得 ZSET 中的統計數量
+            zset_score = redis_client.zscore("tag_count", tag_name)
+            zset_count = int(zset_score) if zset_score is not None else 0
+            
+            # 計算差異
+            difference = zset_count - set_count
+            is_consistent = (difference == 0)
+            
+            inspections.append(RedisTagInspection(
+                tag_name=tag_name,
+                zset_count=zset_count,
+                set_count=set_count,
+                is_consistent=is_consistent,
+                difference=difference
+            ))
+        
+        # 統計一致性
+        total_tags = len(inspections)
+        consistent_count = sum(1 for i in inspections if i.is_consistent)
+        inconsistent_count = total_tags - consistent_count
+        
+        return RedisInspectResponse(
+            total_tags=total_tags,
+            consistent_count=consistent_count,
+            inconsistent_count=inconsistent_count,
+            inspections=inspections
+        )
+        
+    except Exception as e:
+        logger.error(f"Redis inspect failed: {e}")
+        raise HTTPException(500, detail=str(e))
+
 
 # endregion
 
