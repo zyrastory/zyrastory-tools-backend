@@ -239,6 +239,8 @@ def handle_command(event, user_text):
         #最不該發生的情況
         if image_url is None:  
             image_url = random.choice(DEFAULT_MEME_IMAGES)
+        else:   #20260117 新增/random也需統計數量 (tag固定為空 數量固定為1)
+            record_statistics(redis_client, tag=None, images_sent=1)
 
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
