@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from typing import List
 from schemas.base import ApiResponse
 from schemas.login import LoginRequest, LoginResponse
-from schemas.dashboard import DashboardResponse, RedisTagCount, HotKeyword
+from schemas.dashboard import DashboardResponse, RedisTagCount, HotKeyword, DbTagCount
 from schemas.memes import MemeUpdateRequest, MemeSearchRequest, MemeResponse, MemeSearchResponse
 from schemas.redis_inspect import RedisInspectResponse, RedisTagInspection
 import os
@@ -44,7 +44,7 @@ def admin_login(login_data: LoginRequest, login_response: Response):
     #hashed_str = hash_password(login_data.password)
 
     response = supabase.rpc('get_admin_by_username', {
-        'login_name': login_data.username
+        'login_name': login_data.username.lower()
     }).execute()
 
     result = False
@@ -150,6 +150,18 @@ async def get_dashboard_data():
         for tag, score in hot_tags
     ]
     
+    # 新增：從資料庫查詢 Tag 統計
+    supabase = database.supabase
+    try:
+        db_tags_response = supabase.rpc('get_tag_counts_from_active_memes').execute()
+        db_tags_list = [
+            DbTagCount(tag_name=row['tag'], count=row['count'])
+            for row in (db_tags_response.data or [])
+        ]
+    except Exception as e:
+        logger.warning(f"Failed to fetch DB tag counts: {e}")
+        db_tags_list = []
+    
     response = DashboardResponse(
         meme_total_count=meme_total_count, 
         tags_total_count=tags_total_count, 
@@ -157,7 +169,8 @@ async def get_dashboard_data():
         today_calls=today_calls,
         today_images=today_images,
         total_images_served=total_images,
-        hot_keywords=hot_tags_list
+        hot_keywords=hot_tags_list,
+        db_tag_counts=db_tags_list
     )
     return response
 
