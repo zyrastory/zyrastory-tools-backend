@@ -44,7 +44,7 @@ def admin_login(login_data: LoginRequest, login_response: Response):
     #hashed_str = hash_password(login_data.password)
 
     response = supabase.rpc('get_admin_by_username', {
-        'login_name': login_data.username
+        'login_name': login_data.username.lower()
     }).execute()
 
     result = False
