@@ -149,28 +149,70 @@ def handle_message(event):
     logger.info(redis_tags)
 
 
-    if user_text in TAG_ALIASES:
-        user_text = TAG_ALIASES[user_text]
-
-    #20251026 新增關鍵字 redis 判斷 20251102 移除寫死關鍵字判斷
-    if user_text in redis_tags:
-        matched_tag = user_text  # 記錄匹配的標籤
-        cache_key = f"tag:{user_text}"
-        if redis_client.exists(cache_key):
-            image_url = redis_client.srandmember(cache_key)
-            logger.info(f'成功從redis取值-{user_text}')
+    # 2026/02/16 Dual Keyword Search Implementation 
+    parts = user_text.split()
+    
+    # 判斷是否為兩個關鍵字 (Tag+Text or Text+Text)
+    if len(parts) == 2:
+        part1 = parts[0]
+        part2 = parts[1]
+        
+        # 處理別名 (Alias)
+        part1_alias = TAG_ALIASES.get(part1, part1)
+        part2_alias = TAG_ALIASES.get(part2, part2)
+        
+        # 邏輯: 優先判定 Tag + Text (任一順序)
+        # 1. Check Part 1 is Tag
+        if part1_alias in redis_tags:
+            matched_tag = part1_alias
+            response = supabase.rpc(
+                'search_meme_by_tag_and_text',
+                {'search_tag': part1_alias, 'search_text': part2}
+            ).execute()
+            logger.info(f'Dual Search: Tag({part1_alias}) + Text({part2})')
+            
+        # 2. Check Part 2 is Tag
+        elif part2_alias in redis_tags:
+            matched_tag = part2_alias
+            response = supabase.rpc(
+                'search_meme_by_tag_and_text',
+                {'search_tag': part2_alias, 'search_text': part1}
+            ).execute()
+            logger.info(f'Dual Search: Tag({part2_alias}) + Text({part1})')
+            
+        # 3. Neither is Tag -> Double Keyword Search
         else:
             response = supabase.rpc(
-                'search_meme_by_tag',
-                {'search_tag': user_text}
+                'search_meme_by_double_keywords',
+                {'keyword1': part1, 'keyword2': part2}
             ).execute()
-            logger.info('tag 依然走 rpc')
+            logger.info(f'Dual Search: Double Keywords ({part1}, {part2})')
+
+    # 單一關鍵字邏輯 (原有的 Fallback)
     else:
-        # 使用 RPC 搜尋梗圖  >> rpc 寫法待改 order by random 或許太耗效能
-        response = supabase.rpc(
-            'search_meme_by_text', 
-            {'search_text': user_text}
-        ).execute()
+
+        if user_text in TAG_ALIASES:
+            user_text = TAG_ALIASES[user_text]
+
+        #20251026 新增關鍵字 redis 判斷 20251102 移除寫死關鍵字判斷
+        if user_text in redis_tags:
+            matched_tag = user_text  # 記錄匹配的標籤
+            cache_key = f"tag:{user_text}"
+            if redis_client.exists(cache_key):
+                image_url = redis_client.srandmember(cache_key)
+                logger.info(f'成功從redis取值-{user_text}')
+            else:
+                response = supabase.rpc(
+                    'search_meme_by_tag',
+                    {'search_tag': user_text}
+                ).execute()
+                logger.info('tag 依然走 rpc')
+        else:
+            # 使用 RPC 搜尋梗圖  >> rpc 寫法待改 order by random 或許太耗效能
+            response = supabase.rpc(
+                'search_meme_by_text', 
+                {'search_text': user_text}
+            ).execute()
     
 
     # 取得結果

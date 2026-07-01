@@ -245,6 +245,24 @@ async def inspect_redis_consistency():
         raise HTTPException(500, detail=str(e))
 
 
+'''
+API: GET /admin/tags
+功能說明: 取得所有啟用梗圖的 tag 清單（無筆數限制）
+回傳: {"tags": ["tag1", "tag2", ...]}
+備註: 需要管理員權限（JWT Token）
+'''
+@admin_router.get("/tags")
+async def get_all_tags():
+    supabase = database.supabase
+    try:
+        response = supabase.rpc('get_tag_counts_from_active_memes').execute()
+        tags = sorted([row['tag'] for row in (response.data or []) if row.get('tag')])
+        return {"tags": tags}
+    except Exception as e:
+        logger.warning(f"Failed to fetch all tags: {e}")
+        return {"tags": []}
+
+
 # endregion
 
 # region 梗圖管理  嘗試走Restful風格
@@ -321,19 +339,22 @@ API: PATCH /admin/memes/{meme_id}
 async def update_memes(meme_id: str, request: MemeUpdateRequest):
     supabase = database.supabase
 
-    if request.content is None and request.tags is None and request.is_active is None:
+    if request.content is None and "tags" not in request.model_fields_set and request.is_active is None:
         return ApiResponse(status="failed",message="no Data found"),400
     
     try:
+        # 合併更新 dict，支援同時更新多個欄位
+        update_data = {}
         if request.content is not None:
-            response = supabase.table("memes") \
-            .update({"content": request.content }) \
-            .eq("id", meme_id) \
-            .execute()
-        
-        elif request.is_active is not None:
-            response = supabase.table("memes") \
-            .update({"is_active": request.is_active}) \
+            update_data["content"] = request.content
+        if "tags" in request.model_fields_set:
+            # 明確傳入 tags（包含 null）才更新，null 代表清空
+            update_data["tags"] = request.tags
+        if request.is_active is not None:
+            update_data["is_active"] = request.is_active
+
+        response = supabase.table("memes") \
+            .update(update_data) \
             .eq("id", meme_id) \
             .execute()
     except:
